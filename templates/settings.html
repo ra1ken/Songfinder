@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Songfinder - Nastavení</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      const theme = "{{ active_theme }}";
+      if (theme === 'on' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
+</head>
+
+<body>
+  <header class="header">
+    <div class="header__container">
+      <a href="{{ url_for('index') }}" class="header__logo">
+        <div class="header__logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-white)" stroke-width="2">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
+        </div>
+        <span class="header__logo-text">Songfinder</span>
+      </a>
+      <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu" aria-expanded="false">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+      <nav class="header__nav">
+        <a href="{{ url_for('index') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          {{ t.nav_home }}
+        </a>
+        <a href="{{ url_for('playlist') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
+          </svg>
+          {{ t.nav_playlist }}
+        </a>
+        <a href="{{ url_for('about') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          {{ t.nav_about }}
+        </a>
+        <a href="{{ url_for('settings') }}" class="header__nav-link header__nav-link--active">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          {{ t.nav_settings }}
+        </a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('logout') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          {{ t.nav_logout }}
+        </a>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+          {{ t.nav_login }}
+        </a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+
+  <main class="main main--settings">
+    <div class="settings">
+      <h1 class="settings__title">{{ t.settings_title }}</h1>
+      <p class="settings__subtitle">{{ t.settings_subtitle }}</p>
+
+      <article class="settings-card">
+        <div class="settings-card__header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+          <h2 class="settings-card__title">{{ t.theme_title }}</h2>
+        </div>
+        <div class="settings-card__content">
+          <div class="setting-row">
+            <div class="setting-row__info">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              <div>
+                <span class="setting-row__label">{{ t.dark_mode }}</span>
+                <span class="setting-row__description">{{ t.dark_mode_desc }}</span>
+              </div>
+            </div>
+            <select id="dark-mode-select" class="select">
+              <option value="off" {% if user_settings.dark_mode=='off' %}selected{% endif %}>{{ t.dark_mode_off }}
+              </option>
+              <option value="on" {% if user_settings.dark_mode=='on' %}selected{% endif %}>{{ t.dark_mode_on }}</option>
+              <option value="system" {% if user_settings.dark_mode=='system' %}selected{% endif %}>{{ t.dark_mode_system
+                }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </article>
+
+      <article class="settings-card">
+        <div class="settings-card__header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          <h2 class="settings-card__title">{{ t.lang_title }}</h2>
+        </div>
+        <div class="settings-card__content">
+          <div class="setting-row">
+            <label for="language-select" class="setting-row__label">{{ t.lang_label }}</label>
+            <select id="language-select" class="select">
+              <option value="cs" {% if user_settings.language=='cs' %}selected{% endif %}>Čeština</option>
+              <option value="en" {% if user_settings.language=='en' %}selected{% endif %}>English</option>
+              <option value="de" {% if user_settings.language=='de' %}selected{% endif %}>Deutsch</option>
+            </select>
+          </div>
+        </div>
+      </article>
+      {% if current_user.is_authenticated %}
+      <article class="settings-card">
+        <div class="settings-card__header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+          </svg>
+          <h2 class="settings-card__title" style="color: var(--danger);">{{ t.delete_account | default('Zrušit účet') }}
+          </h2>
+        </div>
+        <div class="settings-card__content"
+          style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; text-align: left;">
+          <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+            Tato akce je nevratná. Všechna vaše data a uložené playlisty budou trvale smazány.
+          </p>
+          <button id="delete-account-btn" class="btn btn--danger" style="width: auto;">
+            Smazat účet
+          </button>
+        </div>
+      </article>
+      {% else %}
+      <article class="settings-card">
+        <div class="settings-card__content"
+          style="display: flex; flex-direction: column; align-items: center; text-align: center; padding: 2rem;">
+          <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+            {{ t.guest_settings_msg }}
+          </p>
+          <a href="{{ url_for('login') }}" class="btn btn--primary">
+            {{ t.nav_login }}
+          </a>
+        </div>
+      </article>
+      {% endif %}
+    </div>
+  </main>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+</body>
+
+</html>
