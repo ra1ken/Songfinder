@@ -1,21 +1,21 @@
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 venv/
-env/
-.venv/
 .env
+
+# Database / Flask
 instance/
-.webassets-cache
-*.sqlite3
 *.db
-.vscode/
-.idea/
-*.swp
-*.swo
+
+# Docker
+.dockerignore
+
+# OS stuff
 .DS_Store
 Thumbs.db
-.cache/
-.cache
-popis_3_vystup.txt
-ssl/
+
+# Misc
+resumelatest
+fuckyou.txt

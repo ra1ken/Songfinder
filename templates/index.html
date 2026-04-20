@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="{{ lang }}">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Songfinder - Objevte novou hudbu</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,15 +17,16 @@
         document.documentElement.classList.add('dark-mode');
       }
     })();
+    window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
   </script>
 </head>
 
-<body>
+<body data-theme="{{ active_theme }}">
   <header class="header">
     <div class="header__container">
       <a href="{{ url_for('index') }}" class="header__logo">
         <div class="header__logo-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-white)" stroke-width="2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
             <path d="M9 18V5l12-2v13" />
             <circle cx="6" cy="18" r="3" />
             <circle cx="18" cy="16" r="3" />
@@ -74,6 +76,14 @@
           </svg>
           {{ t.nav_settings }}
         </a>
+        {% if current_user.username == 'admin' %}
+        <a href="{{ url_for('admin_panel') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+          Admin
+        </a>
+        {% endif %}
         {% if current_user.is_authenticated %}
         <a href="{{ url_for('logout') }}" class="header__nav-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -109,14 +119,14 @@
       <p class="hero__subtitle">{{ t.hero_subtitle }}</p>
 
       <div class="api-toggle" id="api-toggle">
-        <button class="api-toggle__btn api-toggle__btn--active" data-source="spotify">
+        <button type="button" class="api-toggle__btn api-toggle__btn--active" data-source="youtube">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
+            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
           </svg>
-          Spotify
+          YouTube
         </button>
-        <button class="api-toggle__btn" data-source="lastfm">
+        <button type="button" class="api-toggle__btn" data-source="lastfm">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 18V5l12-2v13"></path>
             <circle cx="6" cy="18" r="3"></circle>
@@ -124,7 +134,7 @@
           </svg>
           Last.fm
         </button>
-        <button class="api-toggle__btn" data-source="soundcharts">
+        <button type="button" class="api-toggle__btn" data-source="soundcharts">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="4" y="14" width="3" height="6"></rect>
             <rect x="10.5" y="8" width="3" height="12"></rect>
@@ -142,7 +152,7 @@
             <path d="m21 21-4.35-4.35" />
           </svg>
           <input type="text" class="search__input" placeholder="{{ t.search_placeholder }}" id="search-input"
-            name="query">
+            name="query" value="{{ request.args.get('query', '') }}">
         </div>
         <button type="submit" class="search__button">{{ t.search_button }}</button>
       </form>
@@ -196,15 +206,16 @@
             <div class="filter-row">
               <div class="filter-group">
                 <label>{{ t.filter_year_range }}</label>
-                <div class="range-inputs">
-                  <input type="number" id="filter-year-min" placeholder="{{ t.filter_year_from }}" min="1900" max="2030"
-                    class="filter-input-sm">
-                  <span>-</span>
-                  <input type="number" id="filter-year-max" placeholder="{{ t.filter_year_to }}" min="1900" max="2030"
-                    class="filter-input-sm">
+                <div class="range-slider-container">
+                  <div class="range-slider-track"></div>
+                  <div id="year-slider-fill" class="range-slider-fill"></div>
+                  <input type="range" id="filter-year-min" min="1900" max="2030" value="1900">
+                  <input type="range" id="filter-year-max" min="1900" max="2030" value="2030">
+                </div>
+                <div class="range-values">
+                  <span id="year-min-val">1900</span> - <span id="year-max-val">2030</span>
                 </div>
               </div>
-
               <div class="filter-group">
                 <label>{{ t.filter_popularity_min }}</label>
                 <select id="filter-popularity" class="filter-select filter-input-sm" style="width: auto;">
@@ -286,9 +297,11 @@
       loading_similar: "{{ t.loading_similar }}",
       no_similar: "{{ t.no_similar }}",
       add_to_playlist: "{{ t.add_to_playlist }}",
+      no_genres_available: "{{ t.no_genres_available }}",
       export_login_required: "{{ t.export_login_required }}"
     };
   </script>
+  <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/search.js') }}"></script>
   <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ui.js') }}"></script>

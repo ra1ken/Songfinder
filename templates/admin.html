@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>Songfinder - Admin</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .admin-container {
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-white);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-top: 2rem;
+    }
+    .admin-table th, .admin-table td {
+      padding: 1rem 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-table th {
+      background-color: var(--border-light);
+      font-weight: 600;
+      color: var(--text);
+    }
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  </style>
+  <script>
+    (function () {
+      const theme = "{{ active_theme }}";
+      if (theme === 'on' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
+</head>
+
+<body data-theme="{{ active_theme }}">
+  <header class="header">
+    <div class="header__container">
+      <a href="{{ url_for('index') }}" class="header__logo">
+        <div class="header__logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
+        </div>
+        <span class="header__logo-text">Songfinder Admin</span>
+      </a>
+      <nav class="header__nav">
+        <a href="{{ url_for('index') }}" class="header__nav-link">Home</a>
+        <a href="{{ url_for('logout') }}" class="header__nav-link">Logout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="admin-container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div style="background: var(--primary); color: white; padding: 1rem; border-radius: var(--radius); margin-bottom: 1rem; text-align: center;">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="admin-header">
+      <h1>User Management</h1>
+      <div class="stats">
+        <strong>Total Users:</strong> {{ users|length }}
+      </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+      <table class="admin-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Playlists</th>
+          <th>Language</th>
+          <th>Theme</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr>
+          <td>{{ user.id }}</td>
+          <td>{{ user.username }}</td>
+          <td>{{ user.playlists|length }}</td>
+          <td>{{ user.language }}</td>
+          <td>{{ user.dark_mode }}</td>
+          <td>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              {% if user.username != 'admin' %}
+              <button class="btn btn--secondary btn--sm" onclick="editUser({{ user.id }}, '{{ user.username }}')">Edit</button>
+              <form action="{{ url_for('admin_delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('Smazat uživatele {{ user.username }}?');">
+                  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn--danger btn--sm">Delete</button>
+              </form>
+              {% else %}
+              <span class="badge" style="background: var(--primary); color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm);">Admin</span>
+              {% endif %}
+              <a href="{{ url_for('admin_view_playlists', user_id=user.id) }}" class="btn btn--primary btn--sm">Playlists</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    <div id="edit-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:9999;">
+      <div style="background:var(--bg-white); padding:2rem; border-radius:var(--radius-lg); width:400px; max-width:90%;">
+        <h2>Edit User</h2>
+        <form id="edit-form" method="POST">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <div style="margin-bottom: 1rem;">
+            <label>Username</label>
+            <input type="text" name="username" id="edit-username" class="search__input" style="width:100%; margin-top:0.5rem;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label>New Password (leave blank to keep)</label>
+            <input type="password" name="password" class="search__input" style="width:100%; margin-top:0.5rem;">
+          </div>
+          <div style="display:flex; gap:1rem; justify-content:flex-end;">
+            <button type="button" class="btn btn--secondary" onclick="document.getElementById('edit-modal').style.display='none'">Cancel</button>
+            <button type="submit" class="btn btn--primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function editUser(userId, currentUsername) {
+      const modal = document.getElementById('edit-modal');
+      const form = document.getElementById('edit-form');
+      const usernameInput = document.getElementById('edit-username');
+      
+      form.action = `/admin/edit_user/${userId}`;
+      usernameInput.value = currentUsername;
+      
+      modal.style.display = 'flex';
+    }
+  </script>
+  <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+</body>
+</html>

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="{{ lang }}">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Songfinder - Playlist</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,15 +17,16 @@
         document.documentElement.classList.add('dark-mode');
       }
     })();
+    window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
   </script>
 </head>
 
-<body>
+<body data-theme="{{ active_theme }}">
   <header class="header">
     <div class="header__container">
       <a href="{{ url_for('index') }}" class="header__logo">
         <div class="header__logo-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-white)" stroke-width="2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
             <path d="M9 18V5l12-2v13" />
             <circle cx="6" cy="18" r="3" />
             <circle cx="18" cy="16" r="3" />
@@ -74,6 +76,14 @@
           </svg>
           {{ t.nav_settings }}
         </a>
+        {% if current_user.username == 'admin' %}
+        <a href="{{ url_for('admin_panel') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+          Admin
+        </a>
+        {% endif %}
         {% if current_user.is_authenticated %}
         <a href="{{ url_for('logout') }}" class="header__nav-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -96,46 +106,83 @@
     </div>
   </header>
 
-  <main class="main main--playlist">
-    <div class="playlist">
+  <main class="main main--playlist-container">
+    <div class="playlist-manager">
       {% if current_user.is_authenticated %}
-      <div class="playlist__header">
-        <div class="playlist__info">
-          <input type="text" id="playlist-title-input" class="playlist__title-input" value="{{ playlist_name }}"
-            placeholder="My Playlist" />
-          <p class="playlist__meta" id="playlist-meta"></p>
+      <aside class="playlist-sidebar">
+        <div class="playlist-sidebar__header">
+          <h2 class="playlist-sidebar__title">{{ t.playlist_title }}</h2>
+          <button class="btn btn--primary btn--sm btn--icon" id="create-playlist-btn" title="{{ t.create_playlist }}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
         </div>
-      </div>
-      <div class="playlist__actions">
-        <button class="btn btn--primary" id="export-spotify-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polygon points="10 8 16 12 10 16 10 8"></polygon>
-          </svg>
-          {{ t.export_spotify }}
-        </button>
-        <button class="btn btn--danger" id="clear-playlist-btn" style="margin-left: '1rem';">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
-          </svg>
-          {{ t.clear_playlist | default('Smazat playlist') }}
-        </button>
-      </div>
-      <div class="playlist__tracks" id="playlist-tracks"></div>
-      <div class="playlist__footer" id="playlist-footer" style="display:none;">
-        <span id="playlist-total-tracks"></span>
-        <span id="playlist-total-duration"></span>
-      </div>
+        <div class="playlist-sidebar__list" id="sidebar-playlist-list">
+          {% for p in playlists %}
+          <a href="{{ url_for('playlist', slug=p.slug) }}" class="playlist-sidebar__item {% if p.id == active_playlist_id %}active{% endif %}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="18" cy="16" r="3" />
+            </svg>
+            <span class="playlist-sidebar__item-name">{{ p.name }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </aside>
+
+      <section class="playlist-main">
+        <div class="playlist-main__header">
+          <div class="playlist-main__title-row">
+            <input type="text" id="playlist-title-input" class="playlist-main__title-input" value="{{ playlist_name }}"
+              placeholder="My Playlist" />
+            <div class="playlist-main__actions">
+              <button class="btn btn--secondary btn--sm" id="toggle-share-btn">
+                {{ t.share_make_public | default('Make Public') }}
+              </button>
+              <button class="btn btn--secondary btn--sm" id="copy-share-link-btn" style="display:none;">
+                {{ t.share_copy_link | default('Copy Link') }}
+              </button>
+              <button class="btn btn--danger btn--sm btn--icon" id="delete-playlist-btn" title="{{ t.delete_playlist }}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+                </svg>
+              </button>
+              <button class="btn btn--secondary btn--sm" id="clear-playlist-btn">
+                {{ t.clear_playlist }}
+              </button>
+            </div>
+          </div>
+          <p class="playlist-main__meta" id="playlist-meta"></p>
+          <div class="playlist-share-row">
+            <input type="text" id="share-link-input" class="playlist-share-input" readonly style="display:none;" />
+            <a id="open-share-link-btn" class="btn btn--secondary btn--sm" target="_blank" rel="noopener" style="display:none;">
+              {{ t.share_open_link | default('Open Link') }}
+            </a>
+          </div>
+        </div>
+
+        <div class="playlist-main__tracks" id="playlist-tracks"></div>
+        
+        <div class="playlist-main__footer" id="playlist-footer" style="display:none;">
+          <div class="playlist-main__stats">
+            <span id="playlist-total-tracks"></span>
+            <span class="dot-separator">•</span>
+            <span id="playlist-total-duration"></span>
+          </div>
+        </div>
+      </section>
       {% else %}
-      <div class="playlist__content" style="text-align: center; padding: 4rem 2rem;">
-        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5"
-          style="margin-bottom: 2rem;">
+      <div class="playlist__guest-view">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
           <path d="M9 18V5l12-2v13" />
           <circle cx="6" cy="18" r="3" />
           <circle cx="18" cy="16" r="3" />
         </svg>
-        <h2 style="color: var(--text-primary); margin-bottom: 1rem;">{{ t.guest_playlist_msg }}</h2>
-        <a href="{{ url_for('login') }}" class="btn btn--primary" style="display: inline-block; margin-top: 1rem;">
+        <h2>{{ t.guest_playlist_msg }}</h2>
+        <a href="{{ url_for('login') }}" class="btn btn--primary">
           {{ t.nav_login }}
         </a>
       </div>
@@ -147,20 +194,26 @@
 
   <script>
     window.PLAYLIST_TRANSLATIONS = {
-      export_spotify: "{{ t.export_spotify }}",
-      export_success: "{{ t.export_success }}",
-      export_login_required: "{{ t.export_login_required }}",
       playlist_empty: "{{ t.playlist_empty }}",
       remove_from_playlist: "{{ t.remove_from_playlist }}",
       total_tracks: "{{ t.total_tracks_tpl }}",
-      total_duration: "{{ t.total_duration_tpl }}"
+      total_duration: "{{ t.total_duration_tpl }}",
+      delete_confirm: "{{ t.delete_playlist_confirm | default('Are you sure you want to delete this playlist?') }}",
+      share_make_public: "{{ t.share_make_public | default('Make Public') }}",
+      share_make_private: "{{ t.share_make_private | default('Make Private') }}",
+      share_copy_link: "{{ t.share_copy_link | default('Copy Link') }}",
+      share_open_link: "{{ t.share_open_link | default('Open Link') }}",
+      share_copy_success: "{{ t.share_copy_success | default('Share link copied') }}",
+      share_update_failed: "{{ t.share_update_failed | default('Failed to update sharing') }}"
     };
-    window.PLAYLIST_DATA = {{ playlist_items | tojson }};
-    window.SPOTIFY_CONNECTED = {{ 'true' if request.args.get('spotify_connected') else 'false' }};
+    window.PLAYLIST_DATA = {{ playlist_items_json | safe }};
+    window.ACTIVE_PLAYLIST_ID = {{ active_playlist_id | tojson }};
+    window.PLAYLISTS = {{ playlists_json | safe }};
   </script>
+  <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/playlist.js') }}"></script>
   <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-</body>
+  </body>
 
-</html>
+  </html>

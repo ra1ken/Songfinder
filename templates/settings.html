@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="{{ lang }}">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Songfinder - Nastavení</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,12 +20,12 @@
   </script>
 </head>
 
-<body>
+<body data-theme="{{ active_theme }}">
   <header class="header">
     <div class="header__container">
       <a href="{{ url_for('index') }}" class="header__logo">
         <div class="header__logo-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-white)" stroke-width="2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
             <path d="M9 18V5l12-2v13" />
             <circle cx="6" cy="18" r="3" />
             <circle cx="18" cy="16" r="3" />
@@ -74,6 +75,14 @@
           </svg>
           {{ t.nav_settings }}
         </a>
+        {% if current_user.username == 'admin' %}
+        <a href="{{ url_for('admin_panel') }}" class="header__nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+          </svg>
+          Admin
+        </a>
+        {% endif %}
         {% if current_user.is_authenticated %}
         <a href="{{ url_for('logout') }}" class="header__nav-link">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -164,19 +173,48 @@
       {% if current_user.is_authenticated %}
       <article class="settings-card">
         <div class="settings-card__header">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <h2 class="settings-card__title">{{ t.change_password }}</h2>
+        </div>
+        <div class="settings-card__content">
+          <form id="change-password-form" class="settings-form">
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+              <label for="old-password" class="setting-row__label">{{ t.old_password }}</label>
+              <input type="password" id="old-password" class="select" style="width: 100%;" required>
+            </div>
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 0.5rem; margin-top: 1rem;">
+              <label for="new-password" class="setting-row__label">{{ t.new_password }}</label>
+              <input type="password" id="new-password" class="select" style="width: 100%;" required>
+            </div>
+            <div class="setting-row" style="flex-direction: column; align-items: flex-start; gap: 0.5rem; margin-top: 1rem;">
+              <label for="confirm-password" class="setting-row__label">{{ t.confirm_password }}</label>
+              <input type="password" id="confirm-password" class="select" style="width: 100%;" required>
+            </div>
+            <button type="submit" class="btn btn--primary" style="margin-top: 1.5rem;">
+              {{ t.update_password }}
+            </button>
+          </form>
+        </div>
+      </article>
+
+      <article class="settings-card">
+        <div class="settings-card__header">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
           </svg>
-          <h2 class="settings-card__title" style="color: var(--danger);">{{ t.delete_account | default('Zrušit účet') }}
+          <h2 class="settings-card__title" style="color: var(--danger);">{{ t.delete_account }}
           </h2>
         </div>
         <div class="settings-card__content"
           style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem; text-align: left;">
           <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
-            Tato akce je nevratná. Všechna vaše data a uložené playlisty budou trvale smazány.
+            {{ t.delete_account_desc }}
           </p>
           <button id="delete-account-btn" class="btn btn--danger" style="width: auto;">
-            Smazat účet
+            {{ t.delete_account }}
           </button>
         </div>
       </article>
@@ -195,9 +233,19 @@
       {% endif %}
     </div>
   </main>
+  <script>
+    window.SETTINGS_TRANSLATIONS = {
+      delete_account_confirm: "{{ t.delete_account_confirm }}",
+      password_match_error: "{{ t.password_match_error }}",
+      password_changed: "{{ t.password_changed }}",
+      generic_error: "{{ t.error_generic | default('Došlo k chybě.') }}",
+      delete_error: "{{ t.delete_account_error | default('Chyba při mazání účtu.') }}"
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
   <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
   <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
   <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-</body>
+  </body>
 
-</html>
+  </html>

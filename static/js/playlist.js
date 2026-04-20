@@ -5,11 +5,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const footerEl = document.getElementById('playlist-footer');
     const totalTracksEl = document.getElementById('playlist-total-tracks');
     const totalDurationEl = document.getElementById('playlist-total-duration');
-    const exportBtn = document.getElementById('export-spotify-btn');
     const toast = document.getElementById('toast');
+    const toggleShareBtn = document.getElementById('toggle-share-btn');
+    const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
+    const shareLinkInput = document.getElementById('share-link-input');
+    const openShareLinkBtn = document.getElementById('open-share-link-btn');
 
     let items = window.PLAYLIST_DATA || [];
+    let activePlaylistId = window.ACTIVE_PLAYLIST_ID;
+    let shareState = {
+        isPublic: false,
+        shareUrl: ''
+    };
     items.sort((a, b) => (a.list_order || 0) - (b.list_order || 0));
+
+    function getCsrfToken() {
+        const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+        return tokenMeta ? tokenMeta.getAttribute('content') : '';
+    }
+
+    const createPlaylistBtn = document.getElementById('create-playlist-btn');
+    
+    // Sidebar playlist switching
+    document.querySelectorAll('.playlist-sidebar__item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            // Let the href handle it unless we want AJAX later
+            // For now, ensure it works.
+        });
+    });
+
+    if (createPlaylistBtn) {
+        createPlaylistBtn.addEventListener('click', async () => {
+            const name = prompt('Název nového playlistu: (New playlist name:)', 'New Playlist');
+            if (name === null) return;
+            try {
+                const resp = await fetch('api/playlist/create', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({ name: name || 'New Playlist' })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    window.location.href = `playlist?slug=${data.playlist.slug}`;
+                } else {
+                    showToast('Failed to create playlist', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Error creating playlist', 'error');
+            }
+        });
+    }
 
     const titleInput = document.getElementById('playlist-title-input');
     if (titleInput) {
@@ -17,16 +66,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const newName = e.target.value.trim();
             if (!newName) return;
             try {
-                const resp = await fetch('/api/playlist/rename', {
+                const resp = await fetch(`api/playlist/rename/${activePlaylistId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
+                    },
                     body: JSON.stringify({ name: newName })
                 });
                 const data = await resp.json();
                 if (data.success) {
                     showToast('Playlist renamed', 'success');
+                    // Update sidebar if needed or just reload
+                    const activeSidebarItem = document.querySelector('.playlist-sidebar__item.active .playlist-sidebar__item-name');
+                    if (activeSidebarItem) activeSidebarItem.textContent = newName;
                 } else {
-                    showToast('Failed to rename playlist', 'error');
+                    showToast('Error renaming playlist', 'error');
                 }
             } catch (err) {
                 console.error(err);
@@ -35,205 +90,306 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (window.SPOTIFY_CONNECTED) {
-        showToast('Spotify connected! Click Export again.', 'success');
+    const deleteBtn = document.getElementById('delete-playlist-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', async () => {
+            if (!confirm(T.delete_confirm)) return;
+            try {
+                const resp = await fetch(`api/playlist/delete/${activePlaylistId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    window.location.href = 'playlist';
+                } else {
+                    showToast('Error deleting playlist: ' + (data.error || 'unknown'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Error deleting playlist', 'error');
+            }
+        });
+    }
+
+    function renderShareState() {
+        if (!toggleShareBtn) return;
+
+        toggleShareBtn.textContent = shareState.isPublic
+            ? (T.share_make_private || 'Make Private')
+            : (T.share_make_public || 'Make Public');
+
+        if (copyShareLinkBtn) {
+            copyShareLinkBtn.style.display = shareState.isPublic ? '' : 'none';
+            copyShareLinkBtn.textContent = T.share_copy_link || 'Copy Link';
+        }
+
+        if (shareLinkInput) {
+            shareLinkInput.value = shareState.shareUrl || '';
+            shareLinkInput.style.display = shareState.isPublic ? '' : 'none';
+        }
+
+        if (openShareLinkBtn) {
+            if (shareState.isPublic && shareState.shareUrl) {
+                openShareLinkBtn.href = shareState.shareUrl;
+                openShareLinkBtn.style.display = '';
+                openShareLinkBtn.textContent = T.share_open_link || 'Open Link';
+            } else {
+                openShareLinkBtn.removeAttribute('href');
+                openShareLinkBtn.style.display = 'none';
+            }
+        }
+    }
+
+    async function fetchShareState() {
+        if (!activePlaylistId) return;
+        try {
+            const resp = await fetch(`api/playlist/share/${activePlaylistId}`);
+            const data = await resp.json();
+            if (resp.ok && data.success) {
+                shareState.isPublic = !!data.is_public;
+                shareState.shareUrl = data.share_url || '';
+                renderShareState();
+            }
+        } catch (err) {
+            console.error('Failed to fetch share settings:', err);
+        }
+    }
+
+    async function updateShareState(nextPublic) {
+        if (!activePlaylistId) return;
+
+        try {
+            const resp = await fetch(`api/playlist/share/${activePlaylistId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ is_public: !!nextPublic })
+            });
+
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                showToast((data && data.error) || T.share_update_failed || 'Failed to update sharing', 'error');
+                return;
+            }
+
+            shareState.isPublic = !!data.is_public;
+            shareState.shareUrl = data.share_url || '';
+            renderShareState();
+        } catch (err) {
+            console.error(err);
+            showToast(T.share_update_failed || 'Failed to update sharing', 'error');
+        }
+    }
+
+    if (toggleShareBtn) {
+        toggleShareBtn.addEventListener('click', async () => {
+            await updateShareState(!shareState.isPublic);
+        });
+    }
+
+    if (copyShareLinkBtn) {
+        copyShareLinkBtn.addEventListener('click', async () => {
+            if (!shareState.shareUrl) return;
+            try {
+                await navigator.clipboard.writeText(shareState.shareUrl);
+                showToast(T.share_copy_success || 'Share link copied', 'success');
+            } catch (err) {
+                console.error(err);
+                if (shareLinkInput) {
+                    shareLinkInput.focus();
+                    shareLinkInput.select();
+                }
+            }
+        });
     }
 
     let draggedItem = null;
 
     function renderPlaylist() {
         if (!tracksContainer) return;
+        tracksContainer.innerHTML = '';
 
         if (items.length === 0) {
-            tracksContainer.innerHTML = `
-                <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.5;">
-                        <path d="M9 18V5l12-2v13"></path>
-                        <circle cx="6" cy="18" r="3"></circle>
-                        <circle cx="18" cy="16" r="3"></circle>
-                    </svg>
-                    <p>${T.playlist_empty || 'Your playlist is empty. Search for songs and add them!'}</p>
-                </div>`;
-            if (footerEl) footerEl.style.display = 'none';
-            updateMeta();
+            tracksContainer.innerHTML = `<div class="playlist-empty"><p>${sanitizeHTML(T.playlist_empty || 'Playlist is empty')}</p></div>`;
+            footerEl.style.display = 'none';
             return;
         }
 
-        tracksContainer.innerHTML = '';
+        footerEl.style.display = 'block';
+
         items.forEach((item, index) => {
             const row = document.createElement('div');
             row.className = 'track';
-            row.dataset.id = item.id;
             row.draggable = true;
+            row.dataset.id = item.id;
+            row.dataset.index = index;
 
             const mins = Math.floor(item.duration_ms / 60000);
-            const secs = Math.floor((item.duration_ms % 60000) / 1000).toString().padStart(2, '0');
-            const durationStr = item.duration_ms ? `${mins}:${secs}` : '';
+            const secs = Math.floor((item.duration_ms % 60000) / 1000);
+            const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
 
-            let badgeClass = 'source-badge--spotify';
-            let badgeText = 'Spotify';
+            let badgeClass = 'source-badge--youtube';
+            let badgeText = 'YouTube';
             if (item.source === 'lastfm') { badgeClass = 'source-badge--lastfm'; badgeText = 'Last.fm'; }
             if (item.source === 'soundcharts') { badgeClass = 'source-badge--soundcharts'; badgeText = 'SC'; }
 
             row.innerHTML = `
                 <div class="track__drag-handle" title="Drag to reorder">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="8" y1="6" x2="21" y2="6"></line>
-                        <line x1="8" y1="12" x2="21" y2="12"></line>
-                        <line x1="8" y1="18" x2="21" y2="18"></line>
-                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                        <circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/>
+                        <circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>
                     </svg>
                 </div>
-                <span class="track__number" style="width:1rem;">${index + 1}</span>
-                <img src="${item.image || 'static/images/default-album.png'}" alt="${item.track_name}" class="track__image">
+                <div class="track__number">${index + 1}</div>
+                <img src="${item.image_url || 'static/images/default-album.png'}" alt="" class="track__image">
                 <div class="track__info">
-                    <span class="track__name">${item.track_name}</span>
-                    <span class="track__artist">${item.artist}${item.album ? ' • ' + item.album : ''}</span>
+                    <div class="track__name-row">
+                        <span class="track__name">${sanitizeHTML(item.track_name)}</span>
+                        <span class="source-badge ${badgeClass}">${sanitizeHTML(badgeText)}</span>
+                    </div>
+                    <span class="track__artist">${sanitizeHTML(item.artist)}</span>
                 </div>
-                <span class="source-badge ${badgeClass}" style="font-size: 0.6rem;">${badgeText}</span>
-                <span class="track__duration">${durationStr}</span>
-                <button class="track__remove" data-id="${item.id}" title="${T.remove_from_playlist || 'Remove'}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
+                <div class="track__album hide-on-mobile">${sanitizeHTML(item.album_name || '-')}</div>
+                <div class="track__duration">${durationStr}</div>
+                <div class="track__actions">
+                    ${window.IS_ADMIN ? `
+                    <button class="track__download" title="Download MP3">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>` : ''}
+                    <button class="track__remove" title="Remove track">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
             `;
 
-            // Drag and drop events
-            row.addEventListener('dragstart', (e) => {
-                draggedItem = row;
-                setTimeout(() => row.classList.add('dragging'), 0);
+            row.addEventListener('dragstart', handleDragStart);
+            row.addEventListener('dragover', handleDragOver);
+            row.addEventListener('drop', handleDrop);
+            row.addEventListener('dragend', handleDragEnd);
+
+            row.querySelector('.track__remove').addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeTrack(item.id);
             });
-
-            row.addEventListener('dragend', () => {
-                draggedItem.classList.remove('dragging');
-                draggedItem = null;
-                document.querySelectorAll('.track').forEach(t => t.classList.remove('drag-over'));
-            });
-
-            row.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                row.classList.add('drag-over');
-            });
-
-            row.addEventListener('dragleave', () => {
-                row.classList.remove('drag-over');
-            });
-
-            row.addEventListener('drop', async (e) => {
-                e.preventDefault();
-                row.classList.remove('drag-over');
-                if (draggedItem === row) return;
-
-                const allTracks = [...tracksContainer.querySelectorAll('.track')];
-                const draggedIdx = allTracks.indexOf(draggedItem);
-                const targetIdx = allTracks.indexOf(row);
-
-                if (draggedIdx < targetIdx) {
-                    row.after(draggedItem);
-                } else {
-                    row.before(draggedItem);
-                }
-
-                // Update numbers visually immediately
-                tracksContainer.querySelectorAll('.track').forEach((t, i) => {
-                    t.querySelector('.track__number').textContent = i + 1;
-                });
-
-                // Save new order to db
-                const trackIds = [...tracksContainer.querySelectorAll('.track')].map(t => parseInt(t.dataset.id));
-                try {
-                    await fetch('/api/playlist/reorder', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ track_ids: trackIds })
+            
+            if (window.IS_ADMIN) {
+                const downloadBtn = row.querySelector('.track__download');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        window.location.href = `api/playlist/download/${item.id}`;
                     });
-
-                    // Update local items array order
-                    items.sort((a, b) => trackIds.indexOf(a.id) - trackIds.indexOf(b.id));
-                } catch (err) {
-                    console.error('Failed to save order', err);
-                    showToast('Failed to save new order', 'error');
                 }
+            }
+            
+            // Make track clickable to open source URL
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.track__remove') || e.target.closest('.track__drag-handle')) return;
+                if (item.external_url) window.open(item.external_url, '_blank');
             });
 
             tracksContainer.appendChild(row);
         });
 
-        document.querySelectorAll('.track__remove').forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const id = btn.dataset.id;
-                try {
-                    const resp = await fetch(`/api/playlist/remove/${id}`, { method: 'DELETE' });
-                    const data = await resp.json();
-                    if (data.success) {
-                        items = items.filter(i => i.id != id);
-                        renderPlaylist();
-                        showToast(T.remove_from_playlist || 'Removed', 'info');
-                    }
-                } catch (err) {
-                    console.error(err);
-                }
-            });
-        });
-
-        if (footerEl) footerEl.style.display = 'flex';
-        updateMeta();
+        updateStats();
     }
 
-    function updateMeta() {
-        const count = items.length;
-        const totalMs = items.reduce((sum, i) => sum + (i.duration_ms || 0), 0);
-        const totalMins = Math.floor(totalMs / 60000);
+    function handleDragStart(e) {
+        draggedItem = this;
+        this.classList.add('track--dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
 
-        if (metaEl) {
-            metaEl.textContent = `${count} ${count === 1 ? 'track' : 'tracks'} • ${totalMins} min`;
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        return false;
+    }
+
+    function handleDrop(e) {
+        e.stopPropagation();
+        if (draggedItem !== this) {
+            const allTracks = [...tracksContainer.querySelectorAll('.track')];
+            const fromIndex = parseInt(draggedItem.dataset.index);
+            const toIndex = parseInt(this.dataset.index);
+
+            const [movedItem] = items.splice(fromIndex, 1);
+            items.splice(toIndex, 0, movedItem);
+
+            renderPlaylist();
+            saveOrder();
         }
+        return false;
+    }
+
+    function handleDragEnd() {
+        this.classList.remove('track--dragging');
+        draggedItem = null;
+    }
+
+    async function removeTrack(itemId) {
+        try {
+            const resp = await fetch(`api/playlist/remove/${itemId}`, { 
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            });
+            const data = await resp.json();
+            if (data.success) {
+                items = items.filter(i => i.id !== itemId);
+                renderPlaylist();
+                showToast(T.remove_from_playlist || 'Track removed', 'info');
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function saveOrder() {
+        const track_ids = items.map(item => item.id);
+        try {
+            await fetch('api/playlist/reorder', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({ 
+                    playlist_id: activePlaylistId,
+                    track_ids: track_ids 
+                })
+            });
+        } catch (err) {
+            console.error('Failed to save order:', err);
+        }
+    }
+
+    function updateStats() {
+        const totalTracks = items.length;
+        const totalMs = items.reduce((sum, item) => sum + (item.duration_ms || 0), 0);
+        const totalMins = Math.round(totalMs / 60000);
+
         if (totalTracksEl) {
             let tpl = T.total_tracks || '{count} tracks';
-            totalTracksEl.textContent = tpl.replace('{count}', count);
+            totalTracksEl.textContent = tpl.replace('{count}', totalTracks);
         }
         if (totalDurationEl) {
             let tpl = T.total_duration || '{mins} min';
             totalDurationEl.textContent = tpl.replace('{mins}', totalMins);
         }
-    }
-
-    if (exportBtn) {
-        exportBtn.addEventListener('click', async () => {
-            if (items.length === 0) {
-                showToast(T.playlist_empty || 'Playlist is empty', 'error');
-                return;
-            }
-
-            exportBtn.disabled = true;
-            exportBtn.textContent = '...';
-
-            try {
-                const resp = await fetch('/api/playlist/export-spotify', { method: 'POST' });
-                const data = await resp.json();
-
-                if (data.success) {
-                    showToast((T.export_success || 'Exported!') + ` (${data.tracks_added} tracks)`, 'success');
-                    if (data.playlist_url) {
-                        setTimeout(() => window.open(data.playlist_url, '_blank'), 1500);
-                    }
-                } else if (data.error === 'not_connected' || data.error === 'token_expired') {
-                    window.location.href = '/spotify/login';
-                } else {
-                    showToast('Export failed: ' + (data.error || 'unknown'), 'error');
-                }
-            } catch (err) {
-                showToast('Export failed', 'error');
-                console.error(err);
-            } finally {
-                exportBtn.disabled = false;
-                exportBtn.textContent = T.export_spotify || 'Export to Spotify';
-            }
-        });
     }
 
     const clearBtn = document.getElementById('clear-playlist-btn');
@@ -242,18 +398,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (items.length === 0) return;
             if (confirm('Opravdu chcete smazat celý playlist? (Are you sure you want to clear the playlist?)')) {
                 try {
-                    const resp = await fetch('/api/playlist/clear', { method: 'DELETE' });
+                    const resp = await fetch(`api/playlist/clear/${activePlaylistId}`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCsrfToken()
+                        }
+                    });
                     const data = await resp.json();
                     if (data.success) {
                         items = [];
                         renderPlaylist();
-                        showToast('Playlist smazán (Playlist cleared)', 'info');
-                    } else {
-                        showToast('Chyba při mazání playlistu', 'error');
+                        showToast('Playlist cleared', 'info');
                     }
                 } catch (err) {
                     console.error(err);
-                    showToast('Error', 'error');
                 }
             }
         });
@@ -267,4 +425,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     renderPlaylist();
+    fetchShareState();
 });

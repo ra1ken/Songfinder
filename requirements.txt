@@ -1,7 +1,9 @@
 flask
-spotipy
+ytmusicapi
 python-dotenv
 flask-login
 flask-sqlalchemy
 requests
 gunicorn
+Flask-SeaSurf
+yt-dlp

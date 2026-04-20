@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Songfinder - {{ t.shared_playlist_title | default('Shared Playlist') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script>
+    (function () {
+      const theme = "{{ active_theme }}";
+      if (theme === 'on' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark-mode');
+      }
+    })();
+  </script>
+</head>
+
+<body data-theme="{{ active_theme }}">
+  <header class="header">
+    <div class="header__container">
+      <a href="{{ url_for('index') }}" class="header__logo">
+        <div class="header__logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M9 18V5l12-2v13" />
+            <circle cx="6" cy="18" r="3" />
+            <circle cx="18" cy="16" r="3" />
+          </svg>
+        </div>
+        <span class="header__logo-text">Songfinder</span>
+      </a>
+      <nav class="header__nav">
+        <a href="{{ url_for('index') }}" class="header__nav-link">{{ t.nav_home }}</a>
+        <a href="{{ url_for('playlist') }}" class="header__nav-link">{{ t.nav_playlist }}</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main main--playlist-container">
+    <div class="playlist-manager">
+      <section class="playlist-main">
+        {% if playlist %}
+        <div class="playlist-main__header">
+          <div class="playlist-main__title-row">
+            <h1 class="playlist-main__title-static">
+              {{ playlist.name }}
+            </h1>
+          </div>
+          <p class="playlist-main__meta">{{ owner_name }} • {{ t.shared_playlist_public | default('Public playlist') }}</p>
+        </div>
+        <div class="playlist-main__tracks">
+          {% if items %}
+            {% for item in items %}
+            {% if item.external_url %}
+            <a class="shared-track shared-track--link" href="{{ item.external_url }}" target="_blank" rel="noopener">
+            {% else %}
+            <div class="shared-track">
+            {% endif %}
+              <div class="shared-track__number">{{ loop.index }}</div>
+              <img src="{{ item.image or url_for('static', filename='images/default-album.png') }}" alt="" class="shared-track__image">
+              <div class="shared-track__info">
+                <div class="shared-track__name-row">
+                  <span class="shared-track__name">{{ item.track_name }}</span>
+                  {% if item.source == 'lastfm' %}
+                  <span class="source-badge source-badge--lastfm">Last.fm</span>
+                  {% elif item.source == 'soundcharts' %}
+                  <span class="source-badge source-badge--soundcharts">Soundcharts</span>
+                  {% else %}
+                  <span class="source-badge source-badge--youtube">YouTube</span>
+                  {% endif %}
+                </div>
+                <span class="shared-track__artist">{{ item.artist }}</span>
+              </div>
+              <div class="shared-track__duration">
+                {{ (item.duration_ms // 60000) }}:{{ '%02d'|format((item.duration_ms % 60000) // 1000) }}
+              </div>
+            {% if item.external_url %}
+            </a>
+            {% else %}
+            </div>
+            {% endif %}
+            {% endfor %}
+          {% else %}
+            <div class="playlist-empty">
+              <p>{{ t.playlist_empty }}</p>
+            </div>
+          {% endif %}
+        </div>
+        {% else %}
+        <div class="playlist-main__header">
+          <h1 class="playlist-main__title-static">{{ t.shared_playlist_not_found_title | default('Playlist not found') }}</h1>
+          <p class="playlist-main__meta">{{ t.shared_playlist_not_found_text | default('This link is invalid or the playlist is private.') }}</p>
+        </div>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+</body>
+
+</html>

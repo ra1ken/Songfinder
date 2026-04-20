@@ -26,9 +26,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (isDark) {
-            body.classList.add('dark-mode');
+            document.documentElement.classList.add('dark-mode');
         } else {
-            body.classList.remove('dark-mode');
+            document.documentElement.classList.remove('dark-mode');
         }
     }
 
@@ -37,10 +37,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {};
             payload[key] = value;
 
-            await fetch('/api/settings', {
+            await fetch('api/settings', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify(payload)
@@ -59,4 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
             applyTheme('system');
         }
     });
+
+    // Initial apply
+    const initialTheme = body.dataset.theme || 'off';
+    applyTheme(initialTheme);
 });

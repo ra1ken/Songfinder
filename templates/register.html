@@ -1,30 +1,32 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html lang="{{ lang }}">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Songfinder - Registrace</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script>
-    (function () {
-      const theme = "{{ active_theme }}";
-      if (theme === 'on' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark-mode');
-      }
-    })();
-  </script>
-</head>
+    <script>
+      (function () {
+        const theme = "{{ active_theme }}";
+        if (theme === 'on' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark-mode');
+        }
+      })();
+    </script>
+    </head>
 
-<body>
+    <body data-theme="{{ active_theme }}">
+
     <header class="header">
         <div class="header__container">
             <a href="{{ url_for('index') }}" class="header__logo">
                 <div class="header__logo-icon">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--bg-white)"
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white"
                         stroke-width="2">
                         <path d="M9 18V5l12-2v13" />
                         <circle cx="6" cy="18" r="3" />
@@ -68,6 +70,14 @@
                     </svg>
                     {{ t.nav_settings }}
                 </a>
+                {% if current_user.username == 'admin' %}
+                <a href="{{ url_for('admin_panel') }}" class="header__nav-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                    </svg>
+                    Admin
+                </a>
+                {% endif %}
                 {% if current_user.is_authenticated %}
                 <a href="{{ url_for('logout') }}" class="header__nav-link">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -112,6 +122,7 @@
             {% endwith %}
 
             <form class="login-form" action="{{ url_for('register') }}" method="post">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label for="username" class="form-group__label">{{ t.username_label }}</label>
                     <div class="form-group__input-wrapper">
@@ -148,8 +159,9 @@
             </div>
         </div>
     </main>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ui.js') }}"></script>
-</body>
+    </body>
 
-</html>
+    </html>
